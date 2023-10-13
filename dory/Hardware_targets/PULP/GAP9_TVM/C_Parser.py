@@ -20,6 +20,7 @@ import os
 
 
 class C_Parser(C_Parser_PULP):
+    # A custom version of the PULP C Parser
 
     def __init__(self, *args, **kwargs):
         super(C_Parser, self).__init__(*args, **kwargs)
@@ -28,3 +29,20 @@ class C_Parser(C_Parser_PULP):
 
     def get_file_path(self):
         return "/".join(os.path.realpath(__file__).split("/")[:-1])
+
+
+    def full_graph_parsing(self):
+        print("#####################################################")
+        print("## DORY GENERAL PARSING FROM DORY HW IR TO C FILES ##")
+        print("## FINAL RAPRESENTATION: COMPILABLE C PROJECT      ##")
+        print("#####################################################")
+        self.adding_numbers_to_layers()
+        os.system('rm -rf {}'.format(self.app_directory))
+        os.system('mkdir {}'.format(self.app_directory))
+        os.system('mkdir {}/DORY_network'.format(self.app_directory))
+        os.system('mkdir {}/DORY_network/inc'.format(self.app_directory))
+        os.system('mkdir {}/DORY_network/src'.format(self.app_directory))
+        layer_string = self.mapping_layers_to_C_files()
+        self.copy_utils_files()
+        return layer_string
+
