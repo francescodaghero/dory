@@ -132,6 +132,7 @@ class C_Parser(Parser_HW_to_C):
                     node.tiling_dimensions["L1"]["output_dimensions"][1] = int((node.tiling_dimensions["L1"]["input_dimensions"][1] + (node.pads[0] + node.pads[2]) - node.kernel_shape[0] + node.strides[0]) / node.strides[0])
                 tk = self.l2_template_keywords(node, backend_library)
                 c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
+        return c_files
 
     def mapping_makefile(self):
         super(C_Parser, self).mapping_makefile()
