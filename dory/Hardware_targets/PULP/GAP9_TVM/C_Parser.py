@@ -49,6 +49,9 @@ class C_Parser(Parser_HW_to_C):
             db = 2
         self.double_buffering = db
 
+    def get_file_path(self):
+        return "/".join(os.path.realpath(__file__).split("/")[:-1])
+
     @staticmethod
     def _auto_precision_library(graph):
         precision_library = "8bit"
