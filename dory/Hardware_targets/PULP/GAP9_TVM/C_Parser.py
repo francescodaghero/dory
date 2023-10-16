@@ -86,6 +86,14 @@ class C_Parser(Parser_HW_to_C):
     def l2_template_keywords(self, node, backend_library):
         return Layer2D_writer.print_template_layer(node, backend_library, double_buffering=self.double_buffering)
 
+    def l2_template_mapping(self, node, backend_library):
+        """ TVM expects only the source file"""
+        tmpl_c = self.l2_c_template(node, backend_library)
+        return {
+            os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, tmpl_c),
+            #os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L2_h_template.h"),
+        }
+
     def mapping_layers_to_C_files(self) -> list:
         """Similar to the PULP one, but without writing to files"""
         print("\nMapping the layers files to their templates and copying the kernels associated.")
