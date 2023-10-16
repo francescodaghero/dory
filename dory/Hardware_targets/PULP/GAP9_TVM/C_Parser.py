@@ -98,57 +98,59 @@ class C_Parser(Parser_HW_to_C):
         """Similar to the PULP one, but without writing to files"""
         print("\nMapping the layers files to their templates and copying the kernels associated.")
         n_memory_levels = self.HW_description['memory']['levels']
+        assert len(self.HWgraph) == 0, "Expected only one node"
 
-        for i, node in enumerate(self.HWgraph):
-            backend_library = self.node_backend_library(node)
-            c_files = list()
-            #self.copy_backend_files(node, backend_library)
+        #for i, node in enumerate(self.HWgraph):
+        node = self.HWgraph[0]
+        backend_library = self.node_backend_library(node)
+        c_files = list()
+        #self.copy_backend_files(node, backend_library)
 
-            if n_memory_levels > 2 and (node.L3_input != 0 or (node.tiling_dimensions["L3"]["output_dimensions"] != node.tiling_dimensions["L2"]["output_dimensions"]) or (node.tiling_dimensions["L3"]["weights_dimensions"] != node.tiling_dimensions["L2"]["weights_dimensions"])):
-                tk = Layer2D_writer.print_template_layer_L3(node)
-                TemplateWriter.write(tk, {os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, "layer_L3_c_template.c"),
-                                          os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L3_h_template.h")})
-                if node.tiling_dimensions["L3"]["input_dimensions"][1] > node.tiling_dimensions["L2"]["input_dimensions"][1]:
-                    node.tiling_dimensions["L2"]["output_dimensions"][1]  = int(np.floor((node.tiling_dimensions["L2"]["input_dimensions"][1] - node.kernel_shape[0] + node.strides[0]) / node.strides[0]))
-                if node.tiling_dimensions["L3"]["output_dimensions"][1] > node.tiling_dimensions["L2"]["output_dimensions"][1]:
-                    node.tiling_dimensions["L2"]["input_dimensions"][1]   = node.tiling_dimensions["L2"]["output_dimensions"][1] * node.strides[0] + node.kernel_shape[0] - node.strides[0]
-                node.name = node.name + "_L2"
-                padding = node.pads
-                node.pads = [0, padding[1], 0, padding[3]]
+        if n_memory_levels > 2 and (node.L3_input != 0 or (node.tiling_dimensions["L3"]["output_dimensions"] != node.tiling_dimensions["L2"]["output_dimensions"]) or (node.tiling_dimensions["L3"]["weights_dimensions"] != node.tiling_dimensions["L2"]["weights_dimensions"])):
+            tk = Layer2D_writer.print_template_layer_L3(node)
+            TemplateWriter.write(tk, {os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, "layer_L3_c_template.c"),
+                                      os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L3_h_template.h")})
+            if node.tiling_dimensions["L3"]["input_dimensions"][1] > node.tiling_dimensions["L2"]["input_dimensions"][1]:
+                node.tiling_dimensions["L2"]["output_dimensions"][1]  = int(np.floor((node.tiling_dimensions["L2"]["input_dimensions"][1] - node.kernel_shape[0] + node.strides[0]) / node.strides[0]))
+            if node.tiling_dimensions["L3"]["output_dimensions"][1] > node.tiling_dimensions["L2"]["output_dimensions"][1]:
+                node.tiling_dimensions["L2"]["input_dimensions"][1]   = node.tiling_dimensions["L2"]["output_dimensions"][1] * node.strides[0] + node.kernel_shape[0] - node.strides[0]
+            node.name = node.name + "_L2"
+            padding = node.pads
+            node.pads = [0, padding[1], 0, padding[3]]
+            tk = self.l2_template_keywords(node, backend_library)
+            c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
+            node.name = node.name[:-3]
+            if padding[0] > 0:
+                node.name = node.name + "_L2_p_t"
+                node.pads = [padding[0], padding[1], 0, padding[3]]
                 tk = self.l2_template_keywords(node, backend_library)
                 c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
-                node.name = node.name[:-3]
-                if padding[0] > 0:
-                    node.name = node.name + "_L2_p_t"
-                    node.pads = [padding[0], padding[1], 0, padding[3]]
-                    tk = self.l2_template_keywords(node, backend_library)
-                    c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
-                    node.name = node.name[:-1] + "b"
-                    node.pads = [0, padding[1], padding[2], padding[3]]
-                    node.tiling_dimensions["L2"]["input_dimensions"][1] -= (padding[2] - ((node.tiling_dimensions["L3"]["input_dimensions"][1] + padding[0] + padding[2]) - (node.tiling_dimensions["L3"]["output_dimensions"][1]* node.strides[0] + node.kernel_shape[0] - node.strides[0])))
-                    if node.tiling_dimensions["L1"]["input_dimensions"][1] > node.tiling_dimensions["L2"]["input_dimensions"][1]:
-                        node.tiling_dimensions["L1"]["input_dimensions"][1] = node.tiling_dimensions["L2"]["input_dimensions"][1]
-                    if node.tiling_dimensions["L1"]["output_dimensions"][1] > node.tiling_dimensions["L2"]["output_dimensions"][1]:
-                        node.tiling_dimensions["L1"]["output_dimensions"][1] = node.tiling_dimensions["L2"]["output_dimensions"][1]
-                    tk = self.l2_template_keywords(node, backend_library)
-                    c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
-                    node.name = node.name[:-7]
-            else:
-                if node.tiling_dimensions["L2"]["input_dimensions"][2] == node.tiling_dimensions["L1"]["input_dimensions"][2]:
-                    node.tiling_dimensions["L1"]["output_dimensions"][2] = int((node.tiling_dimensions["L1"]["input_dimensions"][2] + (node.pads[1] + node.pads[3]) - node.kernel_shape[1] + node.strides[1]) / node.strides[1])
-                if node.tiling_dimensions["L2"]["input_dimensions"][1] == node.tiling_dimensions["L1"]["input_dimensions"][1]:
-                    node.tiling_dimensions["L1"]["output_dimensions"][1] = int((node.tiling_dimensions["L1"]["input_dimensions"][1] + (node.pads[0] + node.pads[2]) - node.kernel_shape[0] + node.strides[0]) / node.strides[0])
+                node.name = node.name[:-1] + "b"
+                node.pads = [0, padding[1], padding[2], padding[3]]
+                node.tiling_dimensions["L2"]["input_dimensions"][1] -= (padding[2] - ((node.tiling_dimensions["L3"]["input_dimensions"][1] + padding[0] + padding[2]) - (node.tiling_dimensions["L3"]["output_dimensions"][1]* node.strides[0] + node.kernel_shape[0] - node.strides[0])))
+                if node.tiling_dimensions["L1"]["input_dimensions"][1] > node.tiling_dimensions["L2"]["input_dimensions"][1]:
+                    node.tiling_dimensions["L1"]["input_dimensions"][1] = node.tiling_dimensions["L2"]["input_dimensions"][1]
+                if node.tiling_dimensions["L1"]["output_dimensions"][1] > node.tiling_dimensions["L2"]["output_dimensions"][1]:
+                    node.tiling_dimensions["L1"]["output_dimensions"][1] = node.tiling_dimensions["L2"]["output_dimensions"][1]
                 tk = self.l2_template_keywords(node, backend_library)
                 c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
+                node.name = node.name[:-7]
+        else:
+            if node.tiling_dimensions["L2"]["input_dimensions"][2] == node.tiling_dimensions["L1"]["input_dimensions"][2]:
+                node.tiling_dimensions["L1"]["output_dimensions"][2] = int((node.tiling_dimensions["L1"]["input_dimensions"][2] + (node.pads[1] + node.pads[3]) - node.kernel_shape[1] + node.strides[1]) / node.strides[1])
+            if node.tiling_dimensions["L2"]["input_dimensions"][1] == node.tiling_dimensions["L1"]["input_dimensions"][1]:
+                node.tiling_dimensions["L1"]["output_dimensions"][1] = int((node.tiling_dimensions["L1"]["input_dimensions"][1] + (node.pads[0] + node.pads[2]) - node.kernel_shape[0] + node.strides[0]) / node.strides[0])
+            tk = self.l2_template_keywords(node, backend_library)
+            c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
         return c_files
 
-    def mapping_makefile(self):
-        super(C_Parser, self).mapping_makefile()
-        # also print the "vars.mk"
-        prefix = self.HWgraph[0].prefix
-        Makefile_writer.print_template_Makefile(
-            self.HWgraph,
-            self.HW_description,
-            prefix+"vars.mk",
-            self.app_directory,
-            template_location_rel="Templates/vars.mk_template")
+    #def mapping_makefile(self):
+    #    super(C_Parser, self).mapping_makefile()
+    #    # also print the "vars.mk"
+    #    prefix = self.HWgraph[0].prefix
+    #    Makefile_writer.print_template_Makefile(
+    #        self.HWgraph,
+    #        self.HW_description,
+    #        prefix+"vars.mk",
+    #        self.app_directory,
+    #        template_location_rel="Templates/vars.mk_template")
