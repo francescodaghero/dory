@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-#include "${func_name}.h"
 #include "pmsis.h"
 #include "dory_get_tile.h"
 #include "dory_dma.h"
@@ -165,20 +164,15 @@ static void pooling(void * args) {
 }
 
 
-void __attribute__ ((noinline)) ${func_name}(
-  void *args
+int32_t __attribute__ ((noinline)) ${func_name}(
+  void *l2_x, void *l2_y
 ) {
-  unsigned int *real_arg = (unsigned int *) args;
-  unsigned int l3_x =(unsigned int)  real_arg[0];
-  unsigned int l3_y =(unsigned int)  real_arg[1];
-  unsigned int l3_W =(unsigned int)  real_arg[2];
-  unsigned int l2_x =(unsigned int)  real_arg[3];
-  unsigned int l2_x_2 =(unsigned int)  real_arg[4];
-  unsigned int l2_y =(unsigned int)  real_arg[5];
-  unsigned int l2_W =(unsigned int)  real_arg[6];
-  unsigned int l1_buffer =(unsigned int)  real_arg[7];
-  unsigned int hyperram =(unsigned int)  real_arg[8];
-  unsigned int out_shift_in = (unsigned int) real_arg[10];
+  //unsigned int l2_x =(unsigned int)  real_arg[3];
+  //unsigned int l2_x_2 =(unsigned int)  real_arg[4];
+  ///unsigned int l2_y =(unsigned int)  real_arg[5];
+  // DA DICHIARARE
+  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, ${buffer_l1_all});
+  //unsigned int l1_buffer =(unsigned int)  real_arg[7];
 
   Layer layer = {
     .addr = {
@@ -228,4 +222,7 @@ void __attribute__ ((noinline)) ${func_name}(
 
     index = tile_index_get_next(index, index_end);
   }
+
+  pi_cl_l1_free(NULL, l1_buffer, ${buffer_l1_all});
+  return 0;
 }

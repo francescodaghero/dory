@@ -19,14 +19,15 @@
 import json
 import os
 import numpy as np
+from collections import OrderedDict
 import shutil
 
 # DORY modules
 from dory.Parsers.Parser_HW_to_C import Parser_HW_to_C
-import dory.Utils.Templates_writer.Layer2D_template_writer as Layer2D_writer
-import dory.Utils.Templates_writer.Makefile_template_writer as Makefile_writer
+from dory.Hardware_targets.PULP.GAP9_TVM import Layer2D_template_writer as Layer2D_writer
 from dory.Hardware_targets.PULP.GAP9_TVM.TemplateWriter import TemplateWriter
 import dory.Hardware_targets.PULP.Backend_Kernels.BackendKernelsAdapter as BackendKernelsAdapter
+import dory.Utils.Templates_writer.writer_utils as utils
 
 
 class C_Parser(Parser_HW_to_C):
@@ -83,8 +84,8 @@ class C_Parser(Parser_HW_to_C):
         for file in backendKernelsAdapter.get_inc_files():
             shutil.copy(file, self.inc_dir)
 
-    def l2_template_keywords(self, node, backend_library):
-        return Layer2D_writer.print_template_layer(node, backend_library, double_buffering=self.double_buffering)
+    def l2_template_keywords(self,tk, node, backend_library):
+        return Layer2D_writer.print_template_layer(tk, node, backend_library, double_buffering=self.double_buffering)
 
     def l2_template_mapping(self, node, backend_library):
         """ TVM expects only the source file"""
@@ -98,7 +99,7 @@ class C_Parser(Parser_HW_to_C):
         """Similar to the PULP one, but without writing to files"""
         print("\nMapping the layers files to their templates and copying the kernels associated.")
         n_memory_levels = self.HW_description['memory']['levels']
-        assert len(self.HWgraph) == 0, "Expected only one node"
+        assert len(self.HWgraph) == 1, "Expected only one node"
 
         #for i, node in enumerate(self.HWgraph):
         node = self.HWgraph[0]
@@ -107,6 +108,7 @@ class C_Parser(Parser_HW_to_C):
         #self.copy_backend_files(node, backend_library)
 
         if n_memory_levels > 2 and (node.L3_input != 0 or (node.tiling_dimensions["L3"]["output_dimensions"] != node.tiling_dimensions["L2"]["output_dimensions"]) or (node.tiling_dimensions["L3"]["weights_dimensions"] != node.tiling_dimensions["L2"]["weights_dimensions"])):
+            raise NotImplementedError("Currently not supported")
             tk = Layer2D_writer.print_template_layer_L3(node)
             TemplateWriter.write(tk, {os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, "layer_L3_c_template.c"),
                                       os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L3_h_template.h")})
@@ -140,17 +142,20 @@ class C_Parser(Parser_HW_to_C):
                 node.tiling_dimensions["L1"]["output_dimensions"][2] = int((node.tiling_dimensions["L1"]["input_dimensions"][2] + (node.pads[1] + node.pads[3]) - node.kernel_shape[1] + node.strides[1]) / node.strides[1])
             if node.tiling_dimensions["L2"]["input_dimensions"][1] == node.tiling_dimensions["L1"]["input_dimensions"][1]:
                 node.tiling_dimensions["L1"]["output_dimensions"][1] = int((node.tiling_dimensions["L1"]["input_dimensions"][1] + (node.pads[0] + node.pads[2]) - node.kernel_shape[0] + node.strides[0]) / node.strides[0])
-            tk = self.l2_template_keywords(node, backend_library)
+            tk = self.create_hex_weights_files(node)
+            tk = self.l2_template_keywords(tk, node, backend_library)
             c_files += TemplateWriter.write(tk, self.l2_template_mapping(node, backend_library))
         return c_files
 
-    #def mapping_makefile(self):
-    #    super(C_Parser, self).mapping_makefile()
-    #    # also print the "vars.mk"
-    #    prefix = self.HWgraph[0].prefix
-    #    Makefile_writer.print_template_Makefile(
-    #        self.HWgraph,
-    #        self.HW_description,
-    #        prefix+"vars.mk",
-    #        self.app_directory,
-    #        template_location_rel="Templates/vars.mk_template")
+    def create_hex_weights_files(self, node):
+        #TODO : Capire  se l'accel. vuole un layout diverso. Altrimenti i pesi non cambiano
+        print(f"\nGenerating weight string for {node.name}.")
+
+        weights = np.array([])
+        for val in node.constant_names:
+            if val in ["weights", "bias"]:
+                weights = np.concatenate((weights,node.__dict__[val]["value"]))
+        tk = OrderedDict([])
+        tk['weights_vectors'] = utils.print_test_vector(weights, 'char')
+        tk['weights_dimensions'] = weights.shape[0]
+        return tk

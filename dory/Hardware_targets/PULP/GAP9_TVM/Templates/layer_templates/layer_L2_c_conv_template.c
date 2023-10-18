@@ -18,7 +18,6 @@
  * limitations under the License. 
  */
 
-#include "${func_name}.h"
 #include "pmsis.h"
 #include "dory_get_tile.h"
 #include "dory_dma.h"
@@ -265,21 +264,17 @@ static void convolution(void * args) {
   kernel(convolutionArgs->tile, convolutionArgs->im2col, convolutionArgs->pwt_buffer);
 }
 
+GAP_L2_DATA uint8_t l2_W[${weights_dimensions}] = {${weights_vectors}};
 
-void __attribute__ ((noinline)) ${func_name}(void *args) {
+void __attribute__ ((noinline)) ${func_name}(
+  void *l2_x, void *l2_y
+) {
   //////////////////////////////////////////////////////////////////////////
   // arguments assigning: keeping same interface between L2 and L3 memory //
   //////////////////////////////////////////////////////////////////////////
-  unsigned int *real_arg = (unsigned int *) args;
-  unsigned int l3_x =(unsigned int)  real_arg[0];
-  unsigned int l3_y =(unsigned int)  real_arg[1];
-  unsigned int l3_W =(unsigned int)  real_arg[2];
-  unsigned int l2_x =(unsigned int)  real_arg[3];
-  unsigned int l2_x_2 =(unsigned int)  real_arg[4];
-  unsigned int l2_y =(unsigned int)  real_arg[5];
-  unsigned int l2_W =(unsigned int)  real_arg[6];
-  unsigned int l1_buffer =(unsigned int)  real_arg[7];
-  unsigned int hyperram =(unsigned int)  real_arg[8];
+  //unsigned int l2_x_2 =(unsigned int)  real_arg[4];
+  // DA dichiarare all'interno, ma cosa succede con il multicore??
+  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, ${buffer_l1_all});
 
   const Layer layer = {
     .addr = {
@@ -416,5 +411,7 @@ NULL;
 
   pi_team_offload_wait();
   store_output_async(tile_prev, body, layer, index_prev);
+
   dma_transfer_wait(transfer);
+  pi_cl_l1_free(NULL, l1_buffer, ${buffer_l1_all});
 }

@@ -18,7 +18,6 @@
  * limitations under the License. 
  */
 
-#include "${func_name}.h"
 #include "pmsis.h"
 #include "dory_get_tile.h"
 #include "dory_dma.h"
@@ -158,20 +157,14 @@ static void addition(void * args) {
 }
 
 
-void __attribute__ ((noinline)) ${func_name}(
-  void *args
+unsigned int l2_W[${weights_dimensions}]= ${weights_vectors};
+
+int32_t __attribute__ ((noinline)) ${func_name}(
+  void * l2_x, void * l2_x2, void *l2_y
 ) {
-  unsigned int *real_arg = (unsigned int *) args;
-  unsigned int l3_x =(unsigned int)  real_arg[0];
-  unsigned int l3_y =(unsigned int)  real_arg[1];
-  unsigned int l3_W =(unsigned int)  real_arg[2];
-  unsigned int l2_x =(unsigned int)  real_arg[3];
-  unsigned int l2_x2 =(unsigned int)  real_arg[4];
-  unsigned int l2_y =(unsigned int)  real_arg[5];
-  unsigned int l2_W =(unsigned int)  real_arg[6];
-  unsigned int l1_buffer =(unsigned int)  real_arg[7];
-  unsigned int hyperram =(unsigned int)  real_arg[8];
-  unsigned int out_mult_in =(unsigned int)  real_arg[9];
+  // Da dichiarare nel template
+  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, ${buffer_l1_all});
+  // Qua devo aprire il cluster
 
   const Layer layer = {
     .addr = {
@@ -225,4 +218,7 @@ void __attribute__ ((noinline)) ${func_name}(
 
     index = tile_index_get_next(index, index_end);
   }
+
+  pi_cl_l1_free(NULL, l1_buffer, ${buffer_l1_all});
+  return 0;
 }
