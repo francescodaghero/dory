@@ -266,15 +266,19 @@ static void convolution(void * args) {
 
 GAP_L2_DATA uint8_t l2_W[${weights_dimensions}] = {${weights_vectors}};
 
-void __attribute__ ((noinline)) ${func_name}(
-  void *l2_x, void *l2_y
+void __attribute__ ((noinline)) ${func_name}_internal(
+  void *arg 
 ) {
+
+  unsigned int *real_args = (unsigned int *) arg;
+  void * l2_x = (void *) real_args[0];
+  void * l2_y = (void *) real_args[1];
   //////////////////////////////////////////////////////////////////////////
   // arguments assigning: keeping same interface between L2 and L3 memory //
   //////////////////////////////////////////////////////////////////////////
   //unsigned int l2_x_2 =(unsigned int)  real_arg[4];
   // DA dichiarare all'interno, ma cosa succede con il multicore??
-  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, ${buffer_l1_all});
+  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, ${buffer_l1_all}); //Forse manca l'im2col
 
   const Layer layer = {
     .addr = {
@@ -414,4 +418,48 @@ NULL;
 
   dma_transfer_wait(transfer);
   pi_cl_l1_free(NULL, l1_buffer, ${buffer_l1_all});
+}
+
+void __attribute__ ((noinline)) ${func_name}(
+  void *l2_x, void *l2_y
+)
+{
+    pi_time_wait_us(10000);
+  pi_freq_set(PI_FREQ_DOMAIN_FC, 50000000);
+  pi_time_wait_us(10000);
+  pi_freq_set(PI_FREQ_DOMAIN_CL, 50000000);
+  pi_time_wait_us(10000);
+  pi_freq_set(PI_FREQ_DOMAIN_PERIPH, 50000000);
+  pi_time_wait_us(10000);
+
+    // Sono un layer interno!
+    uint32_t errors = 0;
+    uint32_t core_id = pi_core_id(), cluster_id = pi_cluster_id();
+    printf("[%d %d] Hello World!\n", cluster_id, core_id);
+
+
+  struct pi_device cluster_dev = {0};
+  struct pi_cluster_conf conf;
+  struct pi_cluster_task cluster_task = {0};
+
+  // First open the cluster
+  pi_cluster_conf_init(&conf);
+  conf.id=0;
+  unsigned int args[2];
+  args[0] = (unsigned int) l2_x;
+  args[1] = (unsigned int) l2_y;
+  // open cluster...
+  pi_cluster_task(&cluster_task, ${func_name}_internal, args);
+  pi_open_from_conf(&cluster_dev, &conf);
+  if (pi_cluster_open(&cluster_dev))
+    return;
+  // Then offload an entry point, this will get executed on the cluster controller
+#ifndef TARGET_CHIP_FAMILY_GAP9
+  cluster_task.stack_size = 3500;
+#endif
+  cluster_task.slave_stack_size = 3400;
+  pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
+  pi_cluster_close(&cluster_dev);
+  return 0;
+
 }
