@@ -23,6 +23,7 @@
 #include "pulp_nn_kernels.h"
 #include "tile_index.h"
 #include "layer.h"
+#include <gap9_cluster.h>
 
 % if ULTRA_VERBOSE:
 #define VERBOSE_PRINT(...) printf(__VA_ARGS__)
@@ -165,14 +166,13 @@ static void pooling(void * args) {
 
 
 int32_t __attribute__ ((noinline)) ${func_name}(
-  void *l2_x, void *l2_y
+  void *arg
 ) {
-  //unsigned int l2_x =(unsigned int)  real_arg[3];
-  //unsigned int l2_x_2 =(unsigned int)  real_arg[4];
-  ///unsigned int l2_y =(unsigned int)  real_arg[5];
-  // DA DICHIARARE
-  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, ${buffer_l1_all});
-  //unsigned int l1_buffer =(unsigned int)  real_arg[7];
+
+  unsigned int *real_args = (unsigned int *) arg;
+  void * l2_x = (void *) real_args[0];
+  void * l2_y = (void *) real_args[1];
+  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, 92700);
 
   Layer layer = {
     .addr = {
@@ -223,6 +223,17 @@ int32_t __attribute__ ((noinline)) ${func_name}(
     index = tile_index_get_next(index, index_end);
   }
 
-  pi_cl_l1_free(NULL, l1_buffer, ${buffer_l1_all});
+  pi_cl_l1_free(NULL, l1_buffer, 92700);
+}
+void __attribute__ ((noinline)) ${func_name}(
+  void * l2_x, void *l2_y
+)
+{
+  unsigned int args[2];
+  args[0] = (unsigned int) l2_x;
+  args[1] = (unsigned int) l2_y;
+  // Then offload an entry point, this will get executed on the cluster controller
+  pi_cluster_task(&cluster_task, ${func_name}_internal, args);
+  pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
   return 0;
 }

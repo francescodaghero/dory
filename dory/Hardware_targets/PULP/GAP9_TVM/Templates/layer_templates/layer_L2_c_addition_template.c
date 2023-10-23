@@ -24,6 +24,7 @@
 #include "pulp_nn_kernels.h"
 #include "tile_index.h"
 #include "layer.h"
+#include <gap9_cluster.h>
 
 % if ULTRA_VERBOSE:
 #define VERBOSE_PRINT(...) printf(__VA_ARGS__)
@@ -157,13 +158,15 @@ static void addition(void * args) {
 }
 
 
-unsigned int l2_W[${weights_dimensions}]= ${weights_vectors};
 
-int32_t __attribute__ ((noinline)) ${func_name}(
-  void * l2_x, void * l2_x2, void *l2_y
+int32_t __attribute__ ((noinline)) ${func_name}_internal(
+  void *arg
 ) {
-  // Da dichiarare nel template
-  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, ${buffer_l1_all});
+  unsigned int *real_args = (unsigned int *) arg;
+  void * l2_x = (void *) real_args[0];
+  void * l2_x2 = (void *) real_args[1];
+  void * l2_y = (void *) real_args[2];
+  unsigned int l1_buffer = pi_cl_l1_malloc(NULL, 92700);
   // Qua devo aprire il cluster
 
   const Layer layer = {
@@ -219,6 +222,19 @@ int32_t __attribute__ ((noinline)) ${func_name}(
     index = tile_index_get_next(index, index_end);
   }
 
-  pi_cl_l1_free(NULL, l1_buffer, ${buffer_l1_all});
+  pi_cl_l1_free(NULL, l1_buffer, 92700);
+}
+
+void __attribute__ ((noinline)) ${func_name}(
+  void * l2_x, void * l2_x2, void *l2_y
+)
+{
+  unsigned int args[2];
+  args[0] = (unsigned int) l2_x;
+  args[1] = (unsigned int) l2_x2;
+  args[2] = (unsigned int) l2_y;
+  // Then offload an entry point, this will get executed on the cluster controller
+  pi_cluster_task(&cluster_task, ${func_name}_internal, args);
+  pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
   return 0;
 }
