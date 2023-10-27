@@ -94,6 +94,21 @@ class C_Parser(Parser_HW_to_C):
             os.path.join(self.src_dir, node.prefixed_name + ".c"): os.path.join(self.tmpl_dir, tmpl_c),
             #os.path.join(self.inc_dir, node.prefixed_name + ".h"): os.path.join(self.tmpl_dir, "layer_L2_h_template.h"),
         }
+    
+
+    def l2_c_template(self, node, backend_library):
+        if "Pool" in node.op_type:
+            if(backend_library == '1D_Conv'):
+                return "pooling_layer_1D_template.c"
+            else:
+                return "layer_L2_c_pooling_template.c"
+        elif "Add" in node.op_type:
+            if(backend_library == '1D_Conv'):
+                return "add_layer_1D_template.c"
+            else:
+                return "layer_L2_c_addition_template.c"
+        else:
+            return "layer_L2_c_conv_template.c"
 
     def mapping_layers_to_C_files(self) -> list:
         """Similar to the PULP one, but without writing to files"""
