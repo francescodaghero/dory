@@ -265,7 +265,7 @@ static void convolution(void * args) {
   kernel(convolutionArgs->tile, convolutionArgs->im2col, convolutionArgs->pwt_buffer);
 }
 
-GAP_L2_DATA uint8_t l2_W[${weights_dimensions}] = {${weights_vectors}};
+GAP_L2_DATA uint8_t l2_W_${func_name}[${weights_dimensions}] = {${weights_vectors}};
 
 void __attribute__ ((noinline)) ${func_name}_internal(
   void *arg 
@@ -279,13 +279,13 @@ void __attribute__ ((noinline)) ${func_name}_internal(
   const Layer layer = {
     .addr = {
       .input = l2_x,
-      .weights = l2_W,
+      .weights = l2_W_${func_name},
       % if FLAG_BATCHNORM == 1:
-      .scale = l2_W + ${l2_off_k},
-      .bias = l2_W+${l2_off_lambda},
+      .scale = l2_W_${func_name} + ${l2_off_k},
+      .bias = l2_W_${func_name}+${l2_off_lambda},
       % endif
       % if has_bias == 1:
-      .bias = l2_W+${l2_off_bias},
+      .bias = l2_W_${func_name}+${l2_off_bias},
       % endif
       .output = l2_y
     },
