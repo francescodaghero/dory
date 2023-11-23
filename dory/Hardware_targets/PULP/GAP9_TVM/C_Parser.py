@@ -168,7 +168,7 @@ class C_Parser(Parser_HW_to_C):
 
         weights = np.array([])
         for val in node.constant_names:
-            if val in ["weights", "bias"]:
+            if val in ["weights", "bias","k", "lambda"]:
                 weights = np.concatenate((weights,node.__dict__[val]["value"]))
         tk = OrderedDict([])
         tk['weights_vectors'] = utils.print_test_vector(weights, 'char')

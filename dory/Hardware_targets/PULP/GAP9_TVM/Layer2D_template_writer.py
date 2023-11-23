@@ -52,8 +52,8 @@ def print_template_layer(tk, node, layer_type, double_buffering = 2):
     tk['func_name'] = node.prefixed_name
     tk['flag_DW'] = 1 if node.group > 1 else 0
     tk['optional'] = node.op_type
-    tk['FLAG_BATCHNORM'] = 1 if 'k' in node.constant_names else 0
-    tk['has_bias'] = int(len([1 for name in node.constant_names if "bias" in name])>0)
+    tk['FLAG_BATCHNORM'] = 1#1 if 'k' in node.constant_names else 0
+    tk['has_bias'] = 0#int(len([1 for name in node.constant_names if "bias" in name])>0)
     tk['FLAG_RELU'] = 1 if 'outshift' in node.constant_names else 0
     tk['type'] = f"{node.input_activation_type}8_t" if node.input_activation_type in ["int", "uint"] else "float"
     tk['conv_overlap1'] = conv_overlap1
@@ -94,7 +94,7 @@ def print_template_layer(tk, node, layer_type, double_buffering = 2):
 
     ds_x       = node.input_activation_bits
     ds_y       = node.output_activation_bits
-    ds_act     = node.constant_bits
+    ds_act     = 32#node.constant_bits
     ds_W       = node.weight_bits
     ds_bias    = node.bias_bits
 
@@ -312,5 +312,6 @@ def print_template_layer(tk, node, layer_type, double_buffering = 2):
     tk['dilations'] = node.dilations
 
     tk['verbose_log'] = l
-
+    tk["operator_name"] = node.dory_name
+    #breakpoint()
     return tk
